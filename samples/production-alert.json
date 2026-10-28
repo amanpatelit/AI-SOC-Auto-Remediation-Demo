@@ -1,0 +1,12 @@
+{
+  "alert_id": "DEMO-002",
+  "type": "privileged_container_detected",
+  "severity": "critical",
+  "cluster": "minikube",
+  "namespace": "prod-core",
+  "pod": "payments-api",
+  "environment": "production",
+  "confidence": 0.99,
+  "description": "Example production-like alert. This should be blocked by policy.",
+  "proposed_action": "isolate_pod"
+}

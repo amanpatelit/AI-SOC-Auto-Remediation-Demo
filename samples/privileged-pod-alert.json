@@ -1,0 +1,12 @@
+{
+  "alert_id": "DEMO-001",
+  "type": "privileged_container_detected",
+  "severity": "high",
+  "cluster": "minikube",
+  "namespace": "aisoc-demo",
+  "pod": "demo-app",
+  "environment": "development",
+  "confidence": 0.98,
+  "description": "A test workload was flagged for privileged container configuration.",
+  "proposed_action": "isolate_pod"
+}
