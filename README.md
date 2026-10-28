@@ -14,6 +14,8 @@ The project is intended for learning and presentation purposes. By default, it d
 ai-soc-auto-remediation-demo/
 ├── README.md
 ├── requirements.txt
+├── Dockerfile                       # Builds the demo image (app + OPA CLI)
+├── .dockerignore
 ├── policies/
 │   └── remediation.rego             # OPA policy: allow/deny rules
 ├── samples/
@@ -22,7 +24,8 @@ ai-soc-auto-remediation-demo/
 ├── src/
 │   └── ai_soc_demo.py               # Triage, policy evaluation, guarded action, audit log
 ├── k8s/
-│   └── sample-deployment.yaml       # Sample workload for local Kubernetes
+│   ├── sample-deployment.yaml       # Sample workload for local Kubernetes
+│   └── demo-job.yaml                # Runs the demo container as a k8s Job (simulation)
 ├── tests/
 │   └── test_policy.py               # Unit tests for local policy mirror
 └── logs/                            # Created automatically when the demo runs
@@ -37,11 +40,13 @@ ai-soc-auto-remediation-demo/
 - Python 3.10 or newer
 - OPA CLI for evaluating the actual Rego policy
 
-**Required only if you want to apply the demo remediation to Kubernetes**
+**Required only if you want to run on Kubernetes (sections 6 and 7)**
 
 - Docker Desktop with its Linux engine running (Windows)
 - Minikube
 - kubectl
+
+You can run the demo three ways: as a host Python script (sections 4–6), or as a container on Kubernetes (section 7). The container image bundles OPA, so a separate OPA install is not needed for the containerized flow.
 
 Official installation guides:
 
@@ -244,7 +249,65 @@ To remove the sample deployment and namespace when finished:
 kubectl delete namespace aisoc-demo
 ```
 
-## 7. How the policy works
+## 7. Run the demo in Docker on Kubernetes
+
+This runs the demo as a container **inside** your Minikube cluster instead of as a host script. The image bundles the app and the OPA CLI, so real Rego evaluation happens in the pod. The Job runs in simulation mode only: it makes no cluster changes and has no permission to create NetworkPolicies.
+
+Prerequisites: a running Minikube cluster and the `aisoc-demo` namespace from [section 6](#6-optional-set-up-minikube-and-deploy-the-sample-workload).
+
+### Step 1 — Build the image into Minikube's Docker daemon
+
+Point your shell at Minikube's Docker engine, then build so the image is available to the cluster without a registry:
+
+```powershell
+minikube docker-env | Invoke-Expression
+docker build -t aisoc-demo:latest .
+```
+
+To switch your shell back to the host Docker daemon later:
+
+```powershell
+minikube docker-env -u | Invoke-Expression
+```
+
+Alternatively, build against the host Docker and load the image in:
+
+```powershell
+docker build -t aisoc-demo:latest .
+minikube image load aisoc-demo:latest
+```
+
+### Step 2 — Run the demo Job
+
+```powershell
+kubectl apply -f .\k8s\demo-job.yaml
+kubectl wait --for=condition=complete job/aisoc-demo-run -n aisoc-demo --timeout=60s
+```
+
+### Step 3 — View the output
+
+```powershell
+kubectl logs -n aisoc-demo job/aisoc-demo-run
+```
+
+You should see the triage summary and the OPA decision `ALLOW` for the `aisoc-demo` namespace, followed by `SIMULATED` — no Kubernetes resource is changed.
+
+To run the production-like (DENY) alert instead, edit the `args` in `k8s/demo-job.yaml` to point at `/app/samples/production-alert.json`, then re-apply. Delete the previous Job first, since a completed Job's pod spec is immutable:
+
+```powershell
+kubectl delete job aisoc-demo-run -n aisoc-demo
+kubectl apply -f .\k8s\demo-job.yaml
+```
+
+### Clean up
+
+```powershell
+kubectl delete job aisoc-demo-run -n aisoc-demo
+```
+
+> **Note:** The containerized Job writes its audit log inside the pod's own `/app/logs`, which disappears when the pod is removed. Read the decision from `kubectl logs` instead. The host-script flow in sections 4–6 is what writes to `logs/audit.jsonl` on your machine. The Job intentionally runs in simulation mode with `automountServiceAccountToken: false`, so `--apply` from inside the cluster is out of scope for this demo.
+
+## 8. How the policy works
 
 The Rego policy in `policies/remediation.rego` defaults to deny. It allows only the `isolate_pod` demo action when:
 
@@ -255,7 +318,7 @@ The Rego policy in `policies/remediation.rego` defaults to deny. It allows only 
 
 The policy is intentionally small and explicit. It is not a complete security policy for a real platform.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | What to check |
 | --- | --- |
@@ -266,17 +329,17 @@ The policy is intentionally small and explicit. It is not a complete security po
 | Minikube fails to start | Check `docker ps`, then run `minikube logs`. |
 | Pod is not `Running` | Run `kubectl describe pod -n aisoc-demo` and `kubectl get events -n aisoc-demo`. |
 | NetworkPolicy has no effect | Check whether the Minikube network plugin supports NetworkPolicy enforcement. |
+| Job pod shows `ErrImageNeverPull` | The image is not in Minikube. Build with `minikube docker-env` active, or run `minikube image load aisoc-demo:latest`. |
+| `docker build` can't reach the cluster image | Confirm `minikube docker-env` is applied in the **current** shell; it does not persist across new terminals. |
 
-## 9. Suggested live-demo script
+## 10. Suggested live-demo script
 
 1. Run `privileged-pod-alert.json` and show the policy decision ALLOW.
 2. Explain that the default mode is simulation and no cluster changes occur.
 3. Run `production-alert.json` and show the policy decision DENY.
 4. Open `logs/audit.jsonl` to show the recorded outcomes.
 5. If time permits, use a disposable Minikube cluster to apply and then remove the demo NetworkPolicy.
-<<<<<<< HEAD
+
+Optionally, run the containerized version on Kubernetes (see [section 7](#7-run-the-demo-in-docker-on-kubernetes)) to show the same ALLOW/DENY decisions from a pod.
 
 > **Key message:** AI-style triage proposes a remediation; deterministic policy decides whether it may proceed. This demo's triage is currently rule-based placeholder logic, so a real LLM can be integrated as a later extension.
-=======
-Key message: AI-style triage proposes a remediation; deterministic policy decides whether it may proceed. This demo's triage is currently rule-based placeholder logic, so a real LLM can be integrated as a later extension.
->>>>>>> 9309f285c4c4d7f9c84a794e97c482c4d060a9bd

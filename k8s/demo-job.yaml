@@ -1,0 +1,50 @@
+# Runs the containerized AI SOC demo as a Kubernetes Job in SIMULATION mode.
+# OPA evaluates policies/remediation.rego inside the container.
+# No cluster changes are made: the pod does not run with --apply and has no
+# RBAC permission to create NetworkPolicies.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aisoc-demo-run
+  namespace: aisoc-demo
+  labels:
+    app: aisoc-demo
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: aisoc-demo
+    spec:
+      restartPolicy: Never
+      # Default ServiceAccount with no extra permissions. The demo runs in
+      # simulation mode and never contacts the Kubernetes API.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: aisoc-demo
+          image: aisoc-demo:latest
+          # imagePullPolicy Never keeps Minikube from trying to pull a locally
+          # built/loaded image from a registry.
+          imagePullPolicy: Never
+          args:
+            - "--alert"
+            - "/app/samples/privileged-pod-alert.json"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"

@@ -1,0 +1,1 @@
+{"action": "isolate_pod", "alert_id": "DEMO-001", "decision": "ERROR_DENY", "namespace": "aisoc-demo", "reason": "OPA CLI not found. Install OPA or pass --opa PATH. This demo requires OPA for end-to-end policy evaluation.", "timestamp": "2026-10-28T10:20:06.214277+00:00"}
