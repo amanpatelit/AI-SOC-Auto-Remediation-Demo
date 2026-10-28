@@ -274,5 +274,9 @@ The policy is intentionally small and explicit. It is not a complete security po
 3. Run `production-alert.json` and show the policy decision DENY.
 4. Open `logs/audit.jsonl` to show the recorded outcomes.
 5. If time permits, use a disposable Minikube cluster to apply and then remove the demo NetworkPolicy.
+<<<<<<< HEAD
 
 > **Key message:** AI-style triage proposes a remediation; deterministic policy decides whether it may proceed. This demo's triage is currently rule-based placeholder logic, so a real LLM can be integrated as a later extension.
+=======
+Key message: AI-style triage proposes a remediation; deterministic policy decides whether it may proceed. This demo's triage is currently rule-based placeholder logic, so a real LLM can be integrated as a later extension.
+>>>>>>> 9309f285c4c4d7f9c84a794e97c482c4d060a9bd
